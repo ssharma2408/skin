@@ -9,6 +9,7 @@ use App\Http\Requests\LoginRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use GuzzleHttp\Client;
+use App\Rules\ReCaptcha;
 
 class LoginController extends Controller
 {
@@ -40,9 +41,18 @@ class LoginController extends Controller
     public function patient_register_save(Request $request)
     {
         
+		$request->validate([
+            'name' => 'required',            
+            'mobile_no' => 'required|digits:10|numeric',
+            'gender' => 'required',            
+            'g-recaptcha-response' => ['required', new ReCaptcha]
+        ]);
+		
 		$post_arr = [
 			'name'=>$request['name'],
-			'mobile_number'=>$request['mobile_no'],
+			'mobile_number'=>'+91'.$request['mobile_no'],
+			'gender'=>$request['gender'],
+			'dob'=>$request['dob'],
 			'domain'=>$_ENV['DOMAIN'],
 			'clinic_id'=>$_ENV['CLINIC_ID'],
 		];		
@@ -54,9 +64,9 @@ class LoginController extends Controller
 			if($result->success && $result->data->token){
 				
 				$patient = $result->data;
-				
-				return redirect()->to('patient_login')
-					->with('success', $result->message);
+				Session::put('user_details', $patient);
+
+				return $this->authenticated($request, $patient);
 				
 			}else{
 				
@@ -89,7 +99,7 @@ class LoginController extends Controller
     {
         
 		$post_arr = [			
-			'mobile_number'=>$request['mobile_no'],
+			'mobile_number'=>'+91'.$request['mobile_no'],
 			'domain'=>$_ENV['DOMAIN'],
 			'clinic_id'=>$_ENV['CLINIC_ID'],
 		];		
@@ -155,7 +165,7 @@ class LoginController extends Controller
 		if($result->success){
 			
 			$patient = $result->data;
-			Session::put('user_details', $patient);			
+			Session::put('user_details', $patient);
 
 			return $this->authenticated($request, $patient);
 			
@@ -244,8 +254,10 @@ class LoginController extends Controller
      */
     public function logout(Request $request)
     {
-       $request->session()->flush();
-	   return redirect()->to('login')
+       $path = Session::get('user_details')->role == "Patient" ? "/" : "login";
+	   
+	   $request->session()->flush();
+	   return redirect()->to($path)
 			->with('success', 'Logout successfully');
     }
 }

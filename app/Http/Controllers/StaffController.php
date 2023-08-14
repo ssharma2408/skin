@@ -62,9 +62,12 @@ class StaffController extends Controller
         ])->post($theUrl, $post_arr);
 		
 		$staff = json_decode($response->body());
-		
 
-        return redirect()->route('staffs.index');
+		if(isset($staff->data->username)){
+			return redirect()->route('staffs.index')->with('success', "Staff added successfully");
+		}else{
+			return redirect()->route('staffs.index')->with('success', "Staff member is already exist in the system with entered email or user name. Please provide different email and user name.");
+		}        
     }
 
     public function edit()
@@ -301,5 +304,115 @@ class StaffController extends Controller
 		$day_arr = array("Monday", "Tuseday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday");
 
 		return view('staffs.doctor_edit', compact('details', 'day_arr'));
+	}
+	
+	public function token_status(){
+		
+		$theUrl     = config('app.api_url').'v1/token_status/'.$_ENV['CLINIC_ID'];
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token
+        ])->get($theUrl);
+
+		$doctors = json_decode($response->body())->data;
+		
+		$doctor_arr = [];
+		$day_arr = array("Monday", "Tuseday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday");
+		
+		foreach($doctors as $doctor){			
+			$doctor_arr[$doctor->id]['id'] = $doctor->id;
+			$doctor_arr[$doctor->id]['name'] = $doctor->name;
+			$doctor_arr[$doctor->id]['timings'][$doctor->day][] = array('start_hour'=>$doctor->start_hour, 'end_hour'=>$doctor->end_hour, 'slot_id'=>$doctor->slot_id, 'current_token'=>$doctor->current_token);
+		}		
+
+		return view('staffs.token_status', compact('doctor_arr', 'day_arr'));
+	}
+	
+	public function create_token($doctor_id, $slot_id)
+	{
+		return view('staffs.create_token', compact('doctor_id','slot_id'));
+	}
+	
+	public function refresh_token($doctor_id, $slot_id)
+	{
+		$theUrl     = config('app.api_url').'v1/refresh_token/'.$slot_id;
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token
+        ])->get($theUrl);
+
+		$token = json_decode($response->body());
+
+		if(isset($token->data)){
+			$token_number = empty($token->data) ? 0 : $token->data->token_number;
+			return response()->json(array('success'=>1, 'token'=>$token_number), 200);
+		}else{
+			$msg = "There is a technical error, please try after sometime";
+			return response()->json(array('success'=>0,'msg'=> $msg, 'token'=>""), 200);
+		}		
+	}
+	
+	public function process_token(Request $request){
+		
+		$theUrl     = config('app.api_url').'v1/create_token';
+
+		$post_arr = $request->all();
+		
+		$post_arr['clinic_id'] = $_ENV['CLINIC_ID'];
+		$post_arr['mobile_number'] = '+91'.$post_arr['mobile_no'];
+
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->post($theUrl, $post_arr);
+
+		$response = json_decode($response->body());
+
+		if(isset($response->data)){
+			if(isset($response->data->id)){
+				return response()->json(array('success'=>1, 'msg'=> "Token created successfully. Token number is ".$response->data->token_number), 200);
+			}else{
+				if($response->data->msg == "processed"){
+					return response()->json(array('success'=>1, 'msg'=> "Token already created."), 200);
+				}else{
+					return response()->json(array('success'=>2, 'members'=> $response->data->members), 200);
+				}
+			}
+		}else{			
+			return response()->json(array('success'=>0, 'msg'=> "There is an technical error."), 200);
+		}
+	}
+
+	public function profile()
+    {
+		$theUrl     = config('app.api_url').'v1/staff_profile/'.Session::get('user_details')->user_id;
+
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->get($theUrl);
+
+		$details = json_decode($response->body())->data;		
+
+		return view('staffs.profile', compact('details'));
+    }
+	
+	public function profile_update(Request $request)
+	{
+		$post_arr = [
+			'name'=>$request['name'],
+			'email'=>$request['email'],
+			'mobile_number'=>$request['mobile_number'],						
+			'id'=>$request['user_id'],
+		];
+		
+		if(trim($request['password']) != ""){
+			$post_arr['password'] = Hash::make(trim($request['password']));
+		}
+
+		$theUrl     = config('app.api_url').'v1/staff_update_profile';
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->post($theUrl, $post_arr);
+		
+		$status = json_decode($response->body());
+
+		return redirect()->route('staff.profile')->with('success', "Profile updated successfully");
 	}
 }

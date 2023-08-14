@@ -11,7 +11,6 @@
 <div class="text-center">
     <div class="page-title">
         <h2> Welcome to {{$_ENV['DOMAIN']}}</h2>
-
     </div>
     <div class="text-descripstion secondary-text">
         <p>Lorem Ipsum is simply dummy text of the printing and <br>
@@ -22,25 +21,19 @@
     <div class="col-md-5 mx-auto">
         <div class="card-box text-center">
             <div class="section-title">
-                <h3>Clinic Login</h3>
+                <h3 class="text-uppercase">Clinic Login</h3>
+                <div class="text-descripstion secondary-text">
+                Please login to your account
             </div>
-            <div class="text-descripstion secondary-text">
-                Lorem Ipsum is simply dummy <br>
-                text of the
             </div>
+           
             <div class="form-wrap text-start">
-                <div class="mb-4 text-center">
-                    <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-secondary btn-rounded">Clinic Login</button>
-                        <a href="{{ route('patient.login.show') }}" type="button" class="btn btn-primary btn-rounded">Patient Login</a>
-                    </div>
-                </div>
                 <form method="post" action="{{ route('login.perform') }}" class="contact-form-inner">
                     <input type="hidden" name="_token" value="{{ csrf_token() }}" />
                     @include('layouts.partials.messages')
                     <div class="single-input-wrap form-group mb-3">
                         <label class="form-label">Email address<span class="star-red">*</span></label>
-                        <input type="text" name="username" class="form-control" value="{{ old('username') }}" placeholder="" required="required" autofocus>
+                        <input type="text" name="username" class="form-control" value="{{ old('username') }}" placeholder="Enter your email address" required="required" autofocus>
                     </div>
                     @if ($errors->has('username'))
                     <span class="text-danger text-left">{{ $errors->first('username') }}</span>
@@ -48,7 +41,7 @@
                     <div class="single-input-wrap form-group mb-3">
                         <label class="form-label">Password<span class="star-red">*</span></label>
 
-                        <input type="password" class="form-control" name="password" value="{{ old('password') }}" placeholder="" required="required">
+                        <input type="password" class="form-control" name="password" value="{{ old('password') }}" placeholder="Enter your password" required="required">
                     </div>
                     @if ($errors->has('password'))
                     <span class="text-danger text-left">{{ $errors->first('password') }}</span>

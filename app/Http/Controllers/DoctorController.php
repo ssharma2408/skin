@@ -6,6 +6,7 @@ use Session;
 use Illuminate\Support\Facades\Storage;
 
 use Illuminate\Http\Request;
+use Hash;
 
 class DoctorController extends Controller
 {
@@ -68,40 +69,83 @@ class DoctorController extends Controller
 	public function update_token(Request $request)
 	{
 		
-		if ($request->hasFile('prescription')) {			
+		if($request->status == 0 || $request->status == 2){
+			if($request->is_online){
+				//process close token
+				if ($request->hasFile('prescription')) {			
 
-			//Upload file to S3 Bucket and set path to Prescription
-			$extension  = request()->file('prescription')->getClientOriginalExtension();
-            $image_name = time() .'_' . $request->patient_id . '.' . $extension;
-            $path = $request->file('prescription')->storeAs(
-                'patient_'.$request->patient_id,
-                $image_name,
-                's3'
-            );
-			$aws_path = Storage::disk('s3')->url($path);
+					//Upload file to S3 Bucket and set path to Prescription
+					$extension  = request()->file('prescription')->getClientOriginalExtension();
+					$image_name = time() .'_' . $request->patient_id . '.' . $extension;
+					$path = $request->file('prescription')->storeAs(
+						'patient_'.$request->patient_id,
+						$image_name,
+						's3'
+					);
+					$aws_path = Storage::disk('s3')->url($path);
+					
+					$theUrl     = config('app.api_url').'v1/update_token';
+
+					$post_arr = [			
+						'doctor_id'=>Session::get('user_details')->user_id,
+						'patient_id'=>$request->patient_id,
+						'slot_id'=>$request->slot_id,
+						'status'=>$request->status,
+						'clinic_id'=>$_ENV['CLINIC_ID'],
+						'comment'=>$request->comment,
+						'prescription'=>$aws_path,
+						'is_online'=>$request->is_online,
+					];
+
+					$response   = Http ::withHeaders([
+						'Authorization' => 'Bearer '.Session::get('user_details')->token 
+					])->post($theUrl, $post_arr);		
+					
+					$msg = "Status updated successfully.";
+					return response()->json(array('success'=>1, 'msg'=> $msg), 200);
+				}else{
+					//process hold
+					$theUrl     = config('app.api_url').'v1/update_token';
+
+					$post_arr = [			
+						'doctor_id'=>Session::get('user_details')->user_id,
+						'patient_id'=>$request->patient_id,
+						'slot_id'=>$request->slot_id,
+						'status'=>$request->status,
+						'clinic_id'=>$_ENV['CLINIC_ID'],
+						'comment'=>"",
+						'prescription'=>"",
+						'is_online'=>$request->is_online,
+					];
+
+					$response   = Http ::withHeaders([
+						'Authorization' => 'Bearer '.Session::get('user_details')->token 
+					])->post($theUrl, $post_arr);		
+					
+					$msg = "Status updated successfully.";
+					return response()->json(array('success'=>1, 'msg'=> $msg), 200);
+				}
+			}else{
+				$theUrl     = config('app.api_url').'v1/update_token';
+
+				$post_arr = [			
+					'doctor_id'=>Session::get('user_details')->user_id,
+					'patient_id'=>$request->token_id,
+					'slot_id'=>$request->slot_id,
+					'status'=>$request->status,
+					'clinic_id'=>$_ENV['CLINIC_ID'],
+					'is_online'=>$request->is_online,
+				];
+
+				$response   = Http ::withHeaders([
+					'Authorization' => 'Bearer '.Session::get('user_details')->token 
+				])->post($theUrl, $post_arr);		
+				
+				$msg = "Status updated successfully.";
+				return response()->json(array('success'=>1, 'msg'=> $msg), 200);
+			}
+		}
 			
-			$theUrl     = config('app.api_url').'v1/update_token';		
-
-			$post_arr = [			
-				'doctor_id'=>Session::get('user_details')->user_id,
-				'patient_id'=>$request->patient_id,
-				'slot_id'=>$request->slot_id,
-				'status'=>$request->status,
-				'clinic_id'=>$_ENV['CLINIC_ID'],
-				'comment'=>$request->comment,
-				'prescription'=>$aws_path,
-			];
-
-			$response   = Http ::withHeaders([
-				'Authorization' => 'Bearer '.Session::get('user_details')->token 
-			])->post($theUrl, $post_arr);		
-			
-			$msg = "Status updated successfully.";
-			return response()->json(array('success'=>1, 'msg'=> $msg), 200);
-		}else{
-			$msg = "Error";
-			return response()->json(array('success'=>0, 'msg'=> $msg), 200);
-		}		
 	}
 	
 	public function edit(Request $request)
@@ -171,5 +215,66 @@ class DoctorController extends Controller
 		$history = json_decode($response->body())->data;
 		
 		return response()->json(array('success'=>1, 'history'=>$history), 200);
+	}
+	
+	public function search_patients($term)
+	{
+		$theUrl     = config('app.api_url').'v1/search_patients/'.$_ENV['CLINIC_ID'].'/'.Session::get('user_details')->user_id.'/'.$term;
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->get($theUrl);		
+		
+		$patients = json_decode($response->body());
+		
+		if(isset($patients->data)){
+			$patient_arr = [];
+			
+			if(!empty($patients->data)){
+				foreach($patients->data as $patient){
+					$patient_arr[$patient->id]['name'] = $patient->name;
+					$patient_arr[$patient->id]['visit_date'][] = array('visit_date' => $patient->visit_date, 'history_id' => $patient->history_id);
+				}
+			}
+
+			return response()->json(array('success'=>1, 'patient_arr'=>$patient_arr), 200);
+
+		}else{
+			return response()->json(array('success'=>0), 200);
+		}		
+	}
+
+	public function profile()
+    {
+		$theUrl     = config('app.api_url').'v1/profile/'.Session::get('user_details')->user_id;
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->get($theUrl);
+
+		$details = json_decode($response->body())->data;		
+
+		return view('doctors.profile', compact('details'));
+    }
+	
+	public function profile_update(Request $request)
+	{
+		$post_arr = [
+			'name'=>$request['name'],
+			'email'=>$request['email'],
+			'mobile_number'=>$request['mobile_number'],						
+			'id'=>$request['user_id'],
+		];
+		
+		if(trim($request['password']) != ""){
+			$post_arr['password'] = Hash::make(trim($request['password']));
+		}
+
+		$theUrl     = config('app.api_url').'v1/update_profile';
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->post($theUrl, $post_arr);
+		
+		$status = json_decode($response->body());
+
+		return redirect()->route('doctor.profile')->with('success', "Profile updated successfully");
 	}
 }

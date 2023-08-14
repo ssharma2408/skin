@@ -1,58 +1,56 @@
 @extends('layouts.layout')
 
 @section('page')
- 
-	<div>Doctors</div>
- 
+
+<div>Doctors</div>
+
 @endsection
- 
+
 @section('content')
 <!-- page-title stary -->
-<div class="page-title mg-top-50">
-	<div class="container">
-		<a class="float-left" href="/">Home</a>
-		<span class="float-right">Doctor</span>
-	</div>
+<div class="section-title mb-2 pt-0">
+	<h3 class="title">{{$details->doctor->name}}</h3>
 </div>
-<div class="goal-area pd-top-36">
-	<div class="container">
-		<div class="section-title">
-			<h3 class="title">{{$details->doctor->name}}</h3>
-		</div>
-		
-	</div>
-</div>
+
 @if(!empty($details->opening_hours))
 <!-- my-clinic start -->
 <div class="my-clinic-details pd-top-36">
-	<div class="container">
-		<ul class="my-clinic-details-inner">
-			<li class="my-clinic-details-title bg-green">
-				<span class="float-left">Day</span>
-				<span class="float-right">Timings</span>
-				<span class="float-right">Max Token</span>
-				<span class="float-right">Time Per Token</span>
-			</li>
-			@foreach($day_arr as $key=>$day)
-				<li>
-					<span class="float-left">{{ $day }}</span>
+	<ul class="my-clinic-details-inner list-group">
+		<li class="my-clinic-details-title  bg-body-tertiary list-group-item d-flex justify-content-between align-items-start fw-bold">
+			<span class="col-4">Day</span>
+			<span class="col-4">Timings</span>
+			<span class="col-2 d-none d-lg-block">Max Token</span>
+			<span class="col-2 d-none d-lg-block">Time Per Token</span>
+		</li>
+		@foreach($day_arr as $key=>$day)
+		<li class="list-group-item">
+			<div class="row justify-content-between align-items-center">
+				<span class="fw-bold col-lg-4 {{isset($details->opening_hours[$key+1]) ? '' : 'col-4'  }}">{{ $day }}</span>
 					@if(isset($details->opening_hours[$key+1]))
-						<div class="float-right">	
-							@foreach($details->opening_hours[$key+1] as $slot=>$timing)					
-								<span class="d-block">{{$timing->start_hour}} - {{$timing->end_hour}}</span>
-								<span class="d-block">{{$timing->max_token}}</span>
-								<span class="d-block">{{$timing->time_per_token}}</span>
-							@endforeach
+					<div class="col-lg-8">
+					@foreach($details->opening_hours[$key+1] as $slot=>$timing)
+					<div class="row my-2">
+						<div class="col-lg-6 col-12" data-title="Timings">
+							<span>{{$timing->start_hour}} - {{$timing->end_hour}}</span>
 						</div>
-					@else
-						<div class="float-right">								
-							<span class="d-block">Cloed</span>							
+						<div class="col-lg-3 col-12" data-title="Max Token">
+							<span>{{$timing->max_token}}</span>
 						</div>
-					@endif
-				</li>
-			@endforeach
-		</ul>
-	</div>
+						<div class="col-lg-3 col-12" data-title="Time Per Token">
+							<span>{{$timing->time_per_token}}</span><br>
+						</div>
+					</div>
+					@endforeach
+				</div>
+				@else
+				<div class="col">
+					<span class="badge text-bg-danger">Cloed</span>
+				</div>
+				@endif
+			</div>
+		</li>
+		@endforeach
+	</ul>
 </div>
 @endif
 <!-- goal area End -->

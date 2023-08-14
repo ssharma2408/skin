@@ -25,16 +25,15 @@ class PatientController extends Controller
 			$doctor_arr[$doctor->id]['name'] = $doctor->name;
 			$doctor_arr[$doctor->id]['timings'][$doctor->day][] = array('start_hour'=>$doctor->start_hour, 'end_hour'=>$doctor->end_hour, 'slot_id'=>$doctor->slot_id);
 		}
+		
+		$theUrl     = config('app.api_url').'v1/pages/'.$_ENV['CLINIC_ID'];
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token
+        ])->get($theUrl);
 
-		foreach($doctor_arr as $index => $doc){
-			$theUrl     = config('app.api_url').'v1/check_status/'.$_ENV['CLINIC_ID'].'/'.$doc['id'].'/'.Session::get('user_details')->id;
-			$response   = Http ::withHeaders([
-				'Authorization' => 'Bearer '.Session::get('user_details')->token
-			])->get($theUrl);
-			$doctor_arr[$index]['is_booked'] = json_decode($response->body());			
-		}
+		$pages = json_decode($response->body())->data;
 
-		return view('patients.dashboard', compact('doctor_arr', 'day_arr'));
+		return view('patients.dashboard', compact('doctor_arr', 'day_arr', 'pages'));
     }
 	
 	public function book_appointment(Request $request)
@@ -44,7 +43,7 @@ class PatientController extends Controller
 		$post_arr = [			
 			'doctor_id'=>$request->doctor_id,
 			'slot_id'=>$request->slot_id,
-			'patient_id'=>Session::get('user_details')->id,
+			'patient_id'=>$request->patient_id,
 			'clinic_id'=>$_ENV['CLINIC_ID'],
 		];
 
@@ -65,7 +64,7 @@ class PatientController extends Controller
 	
 	public function refresh_status(Request $request)
     {
-		$theUrl     = config('app.api_url').'v1/refresh_status/'.$_ENV['CLINIC_ID'].'/'.$request->doctor_id.'/'.$request->slot_id.'/'.Session::get('user_details')->id;
+		$theUrl     = config('app.api_url').'v1/refresh_status/'.$_ENV['CLINIC_ID'].'/'.$request->doctor_id.'/'.$request->slot_id.'/'.$request->patient_id;
 
 		$response   = Http ::withHeaders([
             'Authorization' => 'Bearer '.Session::get('user_details')->token
@@ -82,4 +81,72 @@ class PatientController extends Controller
 		}
     }
 	
+	public function booking($doctor_id, $slot_id){
+		$theUrl     = config('app.api_url').'v1/patient_family/'.Session::get('user_details')->family_id;
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token
+        ])->get($theUrl);
+
+		$members = json_decode($response->body())->data;
+		
+		$theUrl     = config('app.api_url').'v1/doctors/'.$_ENV['CLINIC_ID'].'/'.$doctor_id;
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->get($theUrl);
+
+		$doctor = json_decode($response->body())->data->doctor;		
+		
+		$is_booked = [];
+
+		foreach($members->members as $index => $patient){
+
+			$theUrl     = config('app.api_url').'v1/refresh_status/'.$_ENV['CLINIC_ID'].'/'.$doctor_id.'/'.$slot_id.'/'.$patient->id;
+			$response   = Http ::withHeaders([
+				'Authorization' => 'Bearer '.Session::get('user_details')->token
+			])->get($theUrl);
+			$res = json_decode($response->body());			
+
+			if(!empty($res)){				
+				$is_booked[$res->data->patient_id] = (array)$res->data;
+			}		
+		}
+
+		return view('patients.booking', compact('members', 'doctor', 'slot_id', 'is_booked'));
+	}
+
+	public function profile()
+    {
+		$theUrl     = config('app.api_url').'v1/patient_profile/'.Session::get('user_details')->id;
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->get($theUrl);
+
+		$details = json_decode($response->body())->data;		
+
+		return view('patients.profile', compact('details'));
+    }
+	
+	public function profile_update(Request $request)
+	{
+		$post_arr = [
+			'name'=>$request['name'],
+			'gender'=>$request['gender'],
+			'mobile_number'=>'+91'.$request['mobile_number'],
+			'dob'=>$request['dob'],
+			'id'=>$request['user_id'],
+		];
+		
+		if(trim($request['password']) != ""){
+			$post_arr['password'] = Hash::make(trim($request['password']));
+		}
+
+		$theUrl     = config('app.api_url').'v1/patient_update_profile';
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->post($theUrl, $post_arr);
+		
+		$status = json_decode($response->body());
+
+		return redirect()->route('patient.profile')->with('success', "Profile updated successfully");
+	}
 }
