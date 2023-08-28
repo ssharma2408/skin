@@ -47,17 +47,21 @@ Patient Booking
 					<div>
 						Current token: <b>{{$is_booked[$member->id]['current_token']}}</b></div>
 					<div>
-						Your token number is <b>{{$is_booked[$member->id]['token_number']}}</b> and estimated time is <b>{{$is_booked[$member->id]['estimated_time']}}</b> minute *</div>
+						Your token number is <b>{{$is_booked[$member->id]['token_number']}}</b>
+						@if($is_booked[$member->id]['current_token'] != "Not Started")
+							and estimated time is <b>{{$is_booked[$member->id]['estimated_time']}}</b>
+						@endif
+					</div>
 					<div>
 						<button class='btn btn-secondary btn-rounded btn-sm refresh_status' id='doc_{{$doctor->id}}_{{$slot_id}}_{{$member->id}}' type='button'>Refresh</button>
 					</div>
 				</div>
+				<div>* Estimated time depends on doctor sign in time and clinic opening time.</div>
 			@else
 				<div class="text-center">Token closed</div>
 			@endif	
 		@endif		
-	</div>
-	<div>* Estimated time depends on doctor sign in time and clinic opening time.</div>
+	</div>	
 </div>
 
 @endforeach
@@ -90,7 +94,13 @@ Patient Booking
 			success: function(data) {
 				if (data.success) {
 					$("#doc_"+doc_id+"_"+slot_id+"_"+patient_id).hide();
-					$html = "<div class='alert alert-success alert-dismissible fade show'>" + data.msg + "</div><div>Current token:" + data.token.current_token + "<b></b></div><div>Your token number is <b>" + data.token.token_number + "</b> and estimated time is <b>" + data.token.estimated_time + "</b> minute</div><div><button class='btn btn-secondary btn-rounded btn-sm refresh_status' id='doc_" + doc_id + "_" + slot_id + "_" + patient_id +"' type='button'>Refresh</button></div>"
+					$html = "<div class='alert alert-success alert-dismissible fade show'>" + data.msg + "</div><div>Current token:" + data.token.current_token + "<b></b></div><div>Your token number is <b>" + data.token.token_number + "</b>";
+
+					if(data.token.current_token != "Not Started"){
+						$html += "and estimated time is <b>" + data.token.estimated_time + "</b>";
+					}
+					$html += "</div><div><button class='btn btn-secondary btn-rounded btn-sm refresh_status' id='doc_" + doc_id + "_" + slot_id + "_" + patient_id +"' type='button'>Refresh</button></div>";
+					
 					$("#token_details_" + patient_id).show().html($html);
 				} else {
 					$html = "<div>" + data.msg + "</div>"
@@ -111,7 +121,14 @@ Patient Booking
 			success: function(data) {
 				if (data.success) {
 					$("#doc_"+doc_id+"_"+slot_id+"_"+patient_id).hide();
-					$html = "<div>Current token:" + data.token.current_token + "<b></b></div><div>Your token number is <b>" + data.token.token_number + "</b> and estimated time is <b>" + data.token.estimated_time + "</b> minute</div><div><button class='btn btn-secondary btn-rounded btn-sm refresh_status' id='doc_" + doc_id + "_" + slot_id + "_" + patient_id +"' type='button'>Refresh</button></div>"
+					$html = "<div>Current token:" + data.token.current_token + "<b></b></div><div>Your token number is <b>" + data.token.token_number + "</b>";
+
+					if(data.token.current_token != "Not Started"){
+						$html += "and estimated time is <b>" + data.token.estimated_time + "</b>";
+					}
+
+					$html += "</div><div><button class='btn btn-secondary btn-rounded btn-sm refresh_status' id='doc_" + doc_id + "_" + slot_id + "_" + patient_id +"' type='button'>Refresh</button></div>";
+
 					$("#token_details_" + patient_id).html($html);
 				} else {
 					$html = "<div>" + data.msg + "</div>"

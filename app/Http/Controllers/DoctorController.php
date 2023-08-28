@@ -54,13 +54,15 @@ class DoctorController extends Controller
 		$response   = Http ::withHeaders([
             'Authorization' => 'Bearer '.Session::get('user_details')->token 
         ])->get($theUrl);
-		
+
 		$patients = json_decode($response->body())->data;
 		
 		$patient_arr = [];
 		
 		foreach($patients as $patient){
-			$patient_arr[$patient->start_hour."-".$patient->end_hour][] = $patient;
+			$patient_arr[$patient->start_hour."-".$patient->end_hour]['patients'][] = $patient;
+			$patient_arr[$patient->start_hour."-".$patient->end_hour]['is_started'] = $patient->is_started;
+			$patient_arr[$patient->start_hour."-".$patient->end_hour]['slot_id'] = $patient->timing_id;
 		}
 
 		return view('doctors.current_appointments', compact('patient_arr'));
@@ -95,6 +97,8 @@ class DoctorController extends Controller
 						'comment'=>$request->comment,
 						'prescription'=>$aws_path,
 						'is_online'=>$request->is_online,
+						'next_visit_date'=>$request->next_visit_date,
+						'time_taken'=>$request->time_taken,
 					];
 
 					$response   = Http ::withHeaders([
@@ -116,6 +120,8 @@ class DoctorController extends Controller
 						'comment'=>"",
 						'prescription'=>"",
 						'is_online'=>$request->is_online,
+						'next_visit_date'=>"",
+						'time_taken'=>$request->time_taken,
 					];
 
 					$response   = Http ::withHeaders([
@@ -135,6 +141,8 @@ class DoctorController extends Controller
 					'status'=>$request->status,
 					'clinic_id'=>$_ENV['CLINIC_ID'],
 					'is_online'=>$request->is_online,
+					'next_visit_date'=>"",
+					'time_taken'=>$request->time_taken,
 				];
 
 				$response   = Http ::withHeaders([
@@ -276,5 +284,18 @@ class DoctorController extends Controller
 		$status = json_decode($response->body());
 
 		return redirect()->route('doctor.profile')->with('success', "Profile updated successfully");
+	}
+	
+	public function start_slot($slot_id, $status)
+	{
+		date_default_timezone_set("Asia/Kolkata");
+
+		$theUrl     = config('app.api_url').'v1/work_status/'.$slot_id.'/'.$status.'/'.strtotime("now");
+
+		$response   = Http ::withHeaders([
+            'Authorization' => 'Bearer '.Session::get('user_details')->token 
+        ])->get($theUrl);
+		
+		return response()->json(array('success'=>1), 200);
 	}
 }
